@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="TopAppBarStyle" parent="Widget.MaterialComponents.Toolbar.Primary">
+        <item name="android:background">@color/blue_top_bar</item>
+    </style>
+</resources>

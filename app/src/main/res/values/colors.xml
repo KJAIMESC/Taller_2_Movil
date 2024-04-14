@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="blue_top_bar">#5a69be</color>
+    <color name="blue_photo_button">#41a5f5</color>
+    <color name="green_map_button">#64b969</color>
+</resources>

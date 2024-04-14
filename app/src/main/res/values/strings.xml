@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Taller 2</string>
+    <string name="Taller_2">Taller 2</string>
+    <string name="image_for_photo_button">image for photo button</string>
+    <string name="camara">camara</string>
+    <string name="image_for_map_button">image for map button</string>
+    <string name="mapa">mapa</string>
+    <string name="video">Video   </string>
+    <string name="image_view_for_camera">image view for camera</string>
+    <string name="take">take</string>
+    <string name="image_for_take_button">image for take button</string>
+    <string name="pick_from_gallery">pick from gallery</string>
+</resources>
