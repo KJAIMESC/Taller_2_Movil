@@ -35,10 +35,17 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
-import java.io.IOException
-
+import com.example.taller2.api.OpenRouteService
+import com.example.taller2.data.RouteModels
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
     private lateinit var binding: ActivityMapaBinding
@@ -52,6 +59,7 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private val pathPoints = mutableListOf<LatLng>()
     private var locationCallback: LocationCallback? = null
     private lateinit var searchEditText: EditText
+    private lateinit var geocoder: Geocoder
 
 
 
@@ -96,39 +104,34 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         // Comienza a recibir actualizaciones de ubicación
         startLocationUpdates()
 
-        searchEditText = findViewById<EditText>(R.id.searchEditText).apply {
-            setOnEditorActionListener { v, actionId, event ->
-                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                    val addressString = text.toString()
-                    if (addressString.isNotEmpty()) {
-                        geolocateAddress(addressString)
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
+        searchEditText = findViewById(R.id.searchEditText)
+        geocoder = Geocoder(this)
+
+        // Configura el listener para el evento de edición terminada
+        searchEditText.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE || event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER) {
+                geolocateAddress(searchEditText.text.toString())
+                true // Consumir el evento del teclado
+            } else false
         }
+
+
     }
 
     private fun geolocateAddress(addressString: String) {
-        val geocoder = Geocoder(this)
-        try {
-            val addressList = geocoder.getFromLocationName(addressString, 1)
-            if (addressList != null) {
-                if (addressList.isNotEmpty()) {
-                    val address = addressList?.get(0)
-                    val latLng = address?.let { LatLng(it.latitude, address.longitude) }
-                    latLng?.let { MarkerOptions().position(it).title(addressString) }
-                        ?.let { map.addMarker(it) }
-                    latLng?.let { CameraUpdateFactory.newLatLngZoom(it, 12.0f) }
-                        ?.let { map.animateCamera(it) }
-                } else {
-                    Toast.makeText(this, "Dirección no encontrada", Toast.LENGTH_SHORT).show()
-                }
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
+        val addresses = geocoder.getFromLocationName(addressString, 1)
+        if (addresses != null && addresses.isNotEmpty()) {
+            val address = addresses.first()
+            val latLng = LatLng(address.latitude, address.longitude)
+            // Agregar el título del marcador con la dirección completa o una descripción
+            val markerOptions = MarkerOptions()
+                .position(latLng)
+                .title(address.getAddressLine(0))
+
+            map.addMarker(markerOptions)
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12.0f))
+        } else {
+            Toast.makeText(this, "Dirección no encontrada", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -177,7 +180,69 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             color(Color.BLUE)
         }
         polyline = map.addPolyline(polylineOptions)
+
+        map.setOnMapLongClickListener { latLng ->
+            setDestination(latLng)
+        }
     }
+
+    private fun setDestination(latLng: LatLng) {
+        map.clear()  // Opcional: limpiar el mapa antes de añadir un nuevo destino
+        val address = getAddressFromLatLng(latLng)
+        map.addMarker(MarkerOptions().position(latLng).title(address))
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12.0f))
+
+        val startPoint = if (pathPoints.isNotEmpty()) pathPoints.last() else latLng
+        createRoute(startPoint, latLng)
+    }
+
+    private suspend fun fetchRoute(originStr: String, destinationStr: String): RouteModels? {
+        return withContext(Dispatchers.IO) { // Utiliza Dispatchers.IO para llamadas de red
+            try {
+                val response = Retrofit.Builder()
+                    .baseUrl("https://api.openrouteservice.org")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+                    .create(OpenRouteService::class.java)
+                    .getRoute("5b3ce3597851110001cf6248ed0fc7dbb697486ca03c5f793bb56f7d", originStr, destinationStr)
+
+                if (response.isSuccessful) {
+                    response.body()
+                } else {
+                    Log.e("MapaActivity", "Error obteniendo la ruta: ${response.message()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("MapaActivity", "Error en la llamada a la API", e)
+                null
+            }
+        }
+    }
+
+    private fun createRoute(origin: LatLng, destination: LatLng) {
+        val originStr = "${origin.latitude},${origin.longitude}"
+        val destinationStr = "${destination.latitude},${destination.longitude}"
+
+        CoroutineScope(Dispatchers.Main).launch {
+            val routeResponse = fetchRoute(originStr, destinationStr)
+            routeResponse?.let { drawRoute(it) }
+        }
+    }
+
+    private fun drawRoute(routeResponse: RouteModels) {
+        val points = routeResponse.features.first().geometry.coordinates.map { coordinate ->
+            LatLng(coordinate[1], coordinate[0]) // Asumiendo que el formato es [longitud, latitud]
+        }
+
+        // Crear opciones de polyline y añadir todos los puntos
+        val polylineOptions = PolylineOptions().addAll(points).width(8f).color(Color.RED)
+
+        runOnUiThread {
+            // Añadir la polyline al mapa
+            polyline = map.addPolyline(polylineOptions)
+        }
+    }
+
 
     private fun enableMyLocation() {
         if (ActivityCompat.checkSelfPermission(
@@ -282,6 +347,17 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             }
         }
     }
+
+    private fun getAddressFromLatLng(latLng: LatLng): String {
+        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+        if (addresses != null) {
+            if (addresses.isNotEmpty()) {
+                return addresses[0].getAddressLine(0)
+            }
+        }
+        return "Dirección Desconocida"
+    }
+
 
     override fun onResume() {
         super.onResume()
