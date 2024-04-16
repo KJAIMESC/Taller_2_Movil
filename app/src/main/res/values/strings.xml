@@ -10,4 +10,5 @@
     <string name="take">take</string>
     <string name="image_for_take_button">image for take button</string>
     <string name="pick_from_gallery">pick from gallery</string>
+    <string name="Direccion">Escribe la dirección :)</string>
 </resources>

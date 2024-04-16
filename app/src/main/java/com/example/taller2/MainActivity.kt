@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.mapButton.setOnClickListener {
-            val intent = Intent(this, MapaActivity::class.java)
+            val intent = Intent(this@MainActivity, MapaActivity::class.java)
             startActivity(intent)
         }
     }

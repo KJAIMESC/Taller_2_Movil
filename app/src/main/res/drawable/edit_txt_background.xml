@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/drawable/edit_text_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#ffffff"/> <!-- color del fondo -->
+    <corners android:radius="20dp"/> <!-- redondeo de los bordes -->
+    <stroke
+        android:width="2dp"
+        android:color="#4CAF50"/> <!-- color y grosor del borde -->
+</shape>
