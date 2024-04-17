@@ -13,6 +13,16 @@
         android:layout_height="match_parent"
         android:name="com.google.android.gms.maps.SupportMapFragment" />
 
+    <Switch
+        android:id="@+id/trackLocationSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/searchEditText"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
+        android:text="Mover el mapa con la posición del usuario?" />
+
+
     <!-- Añade esto en tu RelativeLayout en activity_mapa.xml -->
     <EditText
         android:id="@+id/searchEditText"
@@ -29,5 +39,15 @@
         android:layout_marginTop="16dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"/>
+
+    <ImageView
+        android:id="@+id/logoImageView"
+        android:layout_width="200dp"
+        android:layout_height="100dp"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="@string/logo" />
+
 
 </RelativeLayout>

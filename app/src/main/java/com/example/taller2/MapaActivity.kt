@@ -38,6 +38,8 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.Switch
 import com.example.taller2.api.OpenRouteService
 import com.example.taller2.data.RouteModels
 import kotlinx.coroutines.CoroutineScope
@@ -60,6 +62,8 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private var locationCallback: LocationCallback? = null
     private lateinit var searchEditText: EditText
     private lateinit var geocoder: Geocoder
+    private var trackingLocation = false
+    private lateinit var logoImageView: ImageView
 
 
 
@@ -70,6 +74,7 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
         root = findViewById(R.id.root)
 
+        logoImageView = findViewById(R.id.logoImageView)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -90,16 +95,15 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
-                for (location in locationResult.locations) {
-                    // Añade la ubicación a la lista de puntos de ruta
-                    val point = LatLng(location.latitude, location.longitude)
-                    pathPoints.add(point)
-
-                    // Actualiza la Polyline en el mapa
-                    polyline.points = pathPoints
+                locationResult.locations.lastOrNull()?.let { location ->
+                    if (trackingLocation) {
+                        val userLatLng = LatLng(location.latitude, location.longitude)
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15f))
+                    }
                 }
             }
         }
+
 
         // Comienza a recibir actualizaciones de ubicación
         startLocationUpdates()
@@ -113,6 +117,15 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 geolocateAddress(searchEditText.text.toString())
                 true // Consumir el evento del teclado
             } else false
+        }
+
+        val trackLocationSwitch = findViewById<Switch>(R.id.trackLocationSwitch)
+        trackLocationSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                startLocationUpdates()
+            } else {
+                stopLocationUpdates()
+            }
         }
 
 
@@ -184,7 +197,21 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         map.setOnMapLongClickListener { latLng ->
             setDestination(latLng)
         }
+
+        binding.trackLocationSwitch.setOnCheckedChangeListener { _, isChecked ->
+            trackingLocation = isChecked
+            if (isChecked) {
+                startLocationUpdates()
+            } else {
+                stopLocationUpdates()
+            }
+        }
     }
+
+    private fun stopLocationUpdates() {
+        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
+    }
+
 
     private fun setDestination(latLng: LatLng) {
         map.clear()  // Opcional: limpiar el mapa antes de añadir un nuevo destino
@@ -335,14 +362,24 @@ class MapaActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 val lux = it.values[0]
                 Log.d("MapaActivity", "Luminosidad: $lux lx")
 
-                // Asegúrate de que el mapa esté inicializado antes de utilizarlo.
-                if (::map.isInitialized) {
-                    val styleResId = when {
-                        lux < 1 -> R.raw.night_style // Muy oscuro
-                        else -> R.raw.day_style // Día soleado
+                // Asegúrate de que el mapa y el ImageView estén inicializados antes de utilizarlos.
+                if (::map.isInitialized && ::logoImageView.isInitialized) {
+                    val styleResId: Int
+                    val logoResId: Int
+
+                    if (lux < 1) { // Supongamos que 1 lux es tu umbral para 'noche'
+                        styleResId = R.raw.night_style // Muy oscuro
+                        logoResId = R.drawable.logo_batman
+                    } else {
+                        styleResId = R.raw.day_style // Día soleado
+                        logoResId = R.drawable.logo_barbie
                     }
+
                     val style = MapStyleOptions.loadRawResourceStyle(this@MapaActivity, styleResId)
                     map.setMapStyle(style)
+
+                    // Establece el logotipo correspondiente
+                    logoImageView.setImageResource(logoResId)
                 }
             }
         }
